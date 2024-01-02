@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "pyfake"
+version = "0.0.1"
+description = ""
+authors = ["aprxi <mail@aprxi.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+faker = "^21.0.1"
+
+[tool.poetry.scripts]
+pyfake = "pyfake.generate:main"
+pyfake_row = "pyfake.generate_row:main"
+benchmark_row = "pyfake.benchmark:benchmark_row"
+benchmark_column = "pyfake.benchmark:benchmark_column"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

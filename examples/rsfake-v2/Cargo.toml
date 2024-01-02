@@ -1,0 +1,19 @@
+[package]
+name = "rsfake"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+fake = { version = "2.9", features = ["derive"] }
+
+# env_logger = "0.10"
+# log = "0.4"
+clap = { version = "4.2" , default-features = false, features = ["std", "help"]}
+
+serde = "1.0.136"
+serde_json = "1.0.108"
+rayon = "1.8"
+polars = { version = "0.35", features = ["parquet"] }
+
+[profile.release]
+opt-level = 3

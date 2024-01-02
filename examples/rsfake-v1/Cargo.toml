@@ -1,0 +1,10 @@
+[package]
+name = "rsfake"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+fake = { version = "2.9", features = ["derive"] }
+
+[profile.release]
+opt-level = 3

@@ -1,0 +1,28 @@
+{
+  "columns": [
+    {
+      "name": "id",
+      "type": "u64"
+    },
+    {
+      "name": "first_name",
+      "type": "FirstName"
+    },
+    {
+      "name": "last_name",
+      "type": "LastName"
+    },
+    {
+      "name": "email",
+      "type": "FreeEmail"
+    },
+    {
+      "name": "company",
+      "type": "CompanyName"
+    },
+    {
+      "name": "phone",
+      "type": "PhoneNumber"
+    }
+  ]
+}
