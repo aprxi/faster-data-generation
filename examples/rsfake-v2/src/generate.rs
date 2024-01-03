@@ -1,5 +1,6 @@
 use fake::{Fake, Faker};
 use std::fs;
+use std::path::Path;
 
 use serde_json::Value;
 
@@ -13,14 +14,14 @@ use fake::faker::name::raw::*;
 use fake::faker::phone_number::raw::*;
 use fake::locales::*;
 
-pub fn load_json(json_file: &str) -> Result<Value, Box<dyn std::error::Error>> {
+pub fn load_json(json_file: &Path) -> Result<Value, Box<dyn std::error::Error>> {
     let json_str = fs::read_to_string(json_file)?;
     let json: Value = serde_json::from_str(&json_str)?;
     Ok(json)
 }
 
 pub fn generate_from_json(
-    json_file: &str,
+    json_file: &Path,
     no_rows: usize,
 ) -> Result<DataFrame, Box<dyn std::error::Error>> {
     let json = load_json(json_file)?;

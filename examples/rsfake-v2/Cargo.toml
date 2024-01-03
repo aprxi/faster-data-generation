@@ -8,7 +8,7 @@ fake = { version = "2.9", features = ["derive"] }
 
 # env_logger = "0.10"
 # log = "0.4"
-clap = { version = "4.2" , default-features = false, features = ["std", "help"]}
+clap = { version = "4.2" , default-features = false, features = ["derive", "env", "std", "help"]}
 
 serde = "1.0.136"
 serde_json = "1.0.108"
