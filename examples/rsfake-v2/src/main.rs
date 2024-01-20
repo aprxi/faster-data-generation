@@ -1,4 +1,5 @@
 use std::env;
+use std::path::Path;
 use std::time::Instant;
 
 use clap::{Arg, Command};
@@ -7,7 +8,7 @@ mod generate;
 mod extract;
 
 use generate::generate_from_json;
-use extract::write_dataframe_to_parquet;
+use extract::{write_dataframe_to_single_parquet, write_dataframe_to_multi_parquet};
 
 const PROGRAM_NAME: &str = "rsfake";
 const DEFAULT_SCHEMA_FILE: &str = "schema.json";
@@ -52,6 +53,14 @@ fn parse_cli_arguments() -> Command {
                 .help("Number of threads to use")
                 .default_value(RAYON_NUM_THREADS),
         )
+        .arg(
+            Arg::new("output")
+                .short('o')
+                .long("output")
+                .env("FAKER_OUTPUT_PATH")
+                .value_name("OUTPUT_PATH")
+                .help("Output path to write to")
+        )
 }
 
 
@@ -66,7 +75,7 @@ fn main() {
         .get_one::<String>("schema")
         .expect("Failed to parse schema file");
 
-    // additional check to see if chema file exists
+    // additional check to see if schema file exists
     if !std::path::Path::new(&schema_file).exists() {
         println!("Schema file \"{}\" does not exist", schema_file);
         parse_cli_arguments().print_help().unwrap();
@@ -83,8 +92,9 @@ fn main() {
         .map(|s| s.parse::<usize>().expect("Failed to parse row count"))
         .expect("Failed to parse default row count");
 
+    let output_path = matches.get_one::<String>("output");
 
-    // set RAYON_NUM_THREADS in env for Rayon to pick it up
+    // set RAYON_NUM_THREADS in env for Rayon to use
     env::set_var("RAYON_NUM_THREADS", no_threads.to_string());
 
     let start_time = Instant::now();
@@ -95,11 +105,53 @@ fn main() {
         {no_threads} threads:");
     println!("--- {:.3} seconds ---", elapsed);
 
-    // write to Parquet
-    let parquet_file = "people.parquet";
-    let start_time = Instant::now();
-    write_dataframe_to_parquet(&mut df, parquet_file).unwrap();
-    let elapsed = start_time.elapsed().as_secs_f64();
-    println!("Time taken to write to Parquet:");
-    println!("--- {:.3} seconds ---", elapsed);
+    // write to parquet if output_path is specified
+    if let Some(output_path) = output_path {
+        let path = Path::new(output_path);
+        let mut is_partitioned = false;
+
+        // Check if the path contains a "/" indicating a multi-parquet file
+        if path.to_str().unwrap_or("").contains("/") {
+            is_partitioned = true;
+            
+            // Check if a file with the same base name already exists
+            let base_path = Path::new(output_path.trim_end_matches('/'));
+            if base_path.exists() && base_path.is_file() {
+                println!(
+                    "Error: A file with the name '{}' already exists.",
+                    base_path.display()
+                );
+                return;
+            }
+        }
+
+        let start_time: Instant;
+        let elapsed: f64;
+
+        if is_partitioned {
+            // partitioned parquet file
+            println!(
+                "Output directory for multi-parquet file data: {}",
+                output_path
+            );
+            let dataset_id = "0";
+            let chunk_size = no_rows / no_threads;
+            start_time = Instant::now();
+            let _ = write_dataframe_to_multi_parquet(
+                &mut df, dataset_id, &output_path, chunk_size).unwrap();
+            elapsed = start_time.elapsed().as_secs_f64();
+        } else {
+            // single parquet file
+            println!(
+                "Output file for single-parquet file data: {}",
+                output_path
+            );
+            start_time = Instant::now();
+            let _ = write_dataframe_to_single_parquet(
+                &mut df, &output_path).unwrap();
+            elapsed = start_time.elapsed().as_secs_f64();
+        }
+        println!("Time taken to write to Parquet: {:.3} seconds", elapsed);
+    }
+
 }
