@@ -45,12 +45,7 @@ pub fn generate_from_json(
     Ok(DataFrame::new(columns)?)
 }
 
-fn create_series_from_type<L>(
-    type_name: &str,
-    col_name: &str,
-    no_rows: usize,
-    locale: L,
-) -> Series
+fn create_series_from_type<L>(type_name: &str, col_name: &str, no_rows: usize, locale: L) -> Series
 where
     L: Data + Sync + Send + Copy,
 {

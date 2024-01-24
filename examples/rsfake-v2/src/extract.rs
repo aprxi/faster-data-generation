@@ -1,16 +1,13 @@
-use std::fs::{self, File, ReadDir};
-use std::io::BufReader;
 use std::error::Error;
+use std::fs::{self, File};
 use std::path::Path;
 
-
-use std::io::BufWriter;
 use polars::prelude::*;
-
+use std::io::BufWriter;
 
 pub fn write_dataframe_to_single_parquet(
     df: &mut DataFrame,
-    file_path: &str
+    file_path: &str,
 ) -> Result<(), Box<dyn Error>> {
     let file = File::create(file_path)?;
     let writer = BufWriter::new(file);
@@ -18,17 +15,11 @@ pub fn write_dataframe_to_single_parquet(
     Ok(())
 }
 
-
-pub fn cleanup_dataset_parquet_files(
-    dataset_dir: &str
-) -> Result<(), Box<dyn Error>> {
-
+pub fn cleanup_dataset_parquet_files(dataset_dir: &str) -> Result<(), Box<dyn Error>> {
     if Path::new(&dataset_dir).exists() {
         for entry in fs::read_dir(&dataset_dir)? {
             let path = entry?.path();
-            if path.is_file()
-            && path.extension().and_then(|s| s.to_str()) == Some("parquet") 
-            {
+            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("parquet") {
                 fs::remove_file(path)?;
             }
         }
@@ -37,12 +28,11 @@ pub fn cleanup_dataset_parquet_files(
     Ok(())
 }
 
-
 pub fn write_dataframe_chunk_to_parquet(
-    df_chunk: &mut DataFrame, 
-    dataset_id: &str, 
+    df_chunk: &mut DataFrame,
+    dataset_id: &str,
     base_dir: &str,
-    part_number: usize
+    part_number: usize,
 ) -> Result<(), Box<dyn Error>> {
     // Path for the dataset directory
     let dataset_dir = format!("{}/dataset={}", base_dir, dataset_id);
@@ -61,7 +51,6 @@ pub fn write_dataframe_chunk_to_parquet(
     Ok(())
 }
 
-
 pub fn write_dataframe_to_multi_parquet(
     df: &DataFrame,
     dataset_id: &str,
@@ -78,7 +67,6 @@ pub fn write_dataframe_to_multi_parquet(
         cleanup_dataset_parquet_files(&dataset_dir)?;
     }
 
-
     let n_rows = df.height();
     let mut part_number = 0;
 
@@ -89,40 +77,46 @@ pub fn write_dataframe_to_multi_parquet(
         // Convert chunk to mutable for writing
         let mut chunk_mut = chunk.clone();
 
-        // Use the write_dataframe_chunk_to_parquet function to write the chunk
-        write_dataframe_chunk_to_parquet(
-            &mut chunk_mut, dataset_id, base_dir, part_number)?;
+        // write the chunk
+        write_dataframe_chunk_to_parquet(&mut chunk_mut, dataset_id, base_dir, part_number)?;
         part_number += 1;
     }
     Ok(())
 }
 
-
-#[allow(dead_code)]
-pub fn read_dataframe_from_parquet(file_path: &str) -> Result<DataFrame, Box<dyn Error>> {
+pub fn read_single_parquet_file(file_path: &str) -> Result<DataFrame, Box<dyn Error>> {
     let file = File::open(file_path)?;
-    let reader = BufReader::new(file);
-    let df = ParquetReader::new(reader).finish()?;
+    let df = ParquetReader::new(file).finish()?;
     Ok(df)
 }
 
-#[allow(dead_code)]
 pub fn read_partitioned_parquet(base_dir: &str) -> Result<DataFrame, Box<dyn Error>> {
     let mut dataframes: Vec<DataFrame> = Vec::new();
 
-    // List all subdirectories in the base directory
-    for entry in fs::read_dir(base_dir)? {
-        let path = entry?.path();
+    fn read_parquet_files(
+        path: &Path,
+        dataframes: &mut Vec<DataFrame>,
+    ) -> Result<(), Box<dyn Error>> {
         if path.is_dir() {
-            // Assuming there's only one Parquet file per partition in each subdirectory
-            let parquet_path = path.join("data.parquet");
-            if parquet_path.exists() {
-                // Read the Parquet file into a DataFrame
-                let dataframe = ParquetReader::new(fs::File::open(parquet_path)?).finish()?;
-                dataframes.push(dataframe);
+            for entry in fs::read_dir(path)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_dir() {
+                    // Recursively read nested directories
+                    read_parquet_files(&path, dataframes)?;
+                } else if path.is_file()
+                    && path.extension().and_then(|s| s.to_str()) == Some("parquet")
+                {
+                    let df = ParquetReader::new(File::open(path)?).finish()?;
+                    dataframes.push(df);
+                }
             }
         }
+        Ok(())
     }
+
+    let base_path = Path::new(base_dir);
+    read_parquet_files(base_path, &mut dataframes)?;
 
     // Iteratively vstack DataFrames
     let mut combined_df = match dataframes.get(0) {
